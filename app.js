@@ -66,7 +66,7 @@ function renderProjectGate(){
 async function createProject(){
   const name=$('#newProjectName').value.trim();if(!name)return toast('Enter a project name');
   const join_code=crypto.randomUUID().replaceAll('-','').slice(0,10).toUpperCase();
-  const {data,error}=await state.supabase.from('projects').insert({name,join_code,owner_id:state.user.id,phase:'blind'}).select().single();
+  const {error}=await state.supabase.rpc('create_project',{p_name:name,p_join_code:join_code});
   if(error)return toast(error.message);toast(`Project created. Invite code: ${join_code}`);await loadProjects();
 }
 async function joinProject(){const code=$('#joinCode').value.trim();if(!code)return toast('Enter an invite code');const {data,error}=await state.supabase.rpc('join_project_with_code',{p_code:code});if(error)return toast(error.message);toast('Joined project');await loadProjects();}

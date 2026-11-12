@@ -191,6 +191,24 @@ end;
 $$;
 drop trigger if exists projects_add_owner on public.projects;
 create trigger projects_add_owner after insert on public.projects for each row execute function public.add_project_owner();
+-- Create projects through a narrow authenticated function. This avoids relying
+-- on browser-side INSERT policy evaluation while keeping ownership tied to the
+-- caller's verified Supabase identity.
+create or replace function public.create_project(p_name text, p_join_code text)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare new_project_id uuid;
+begin
+  if (select auth.uid()) is null then raise exception 'Sign in first'; end if;
+  if length(trim(coalesce(p_name,''))) not between 1 and 120 then raise exception 'Project name must be 1 to 120 characters'; end if;
+  if length(trim(coalesce(p_join_code,''))) not between 6 and 32 then raise exception 'Invalid invite code'; end if;
+  insert into public.projects(name,join_code,owner_id,phase)
+    values(trim(p_name),upper(trim(p_join_code)),(select auth.uid()),'blind')
+    returning id into new_project_id;
+  return new_project_id;
+end;
+$$;
+revoke all on function public.create_project(text,text) from public, anon;
+grant execute on function public.create_project(text,text) to authenticated;
 create or replace function public.join_project_with_code(p_code text)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare found_project uuid;

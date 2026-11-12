@@ -29,7 +29,7 @@ In the current workbook the six eligible pool sizes are Agency non-presence 48, 
 
 ## Supabase setup
 
-1. Create a Supabase project and run [`schema.sql`](./schema.sql) in its SQL Editor. This creates tables, row access policies, project join-code functions, sampling functions, and Realtime publication entries.
+1. Create a Supabase project and run [`schema.sql`](./schema.sql) in its SQL Editor. This creates tables, row access policies, project join-code and creation functions, sampling functions, and Realtime publication entries. If the database was set up with an earlier version, rerun the updated `schema.sql`; it uses `create or replace` for the project creation function and keeps existing project data.
 2. Generate a private SQL seed from the workbook:
 
    ```bash
