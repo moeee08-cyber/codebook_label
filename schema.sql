@@ -203,25 +203,34 @@ begin
 end;
 $$;
 grant execute on function public.join_project_with_code(text) to authenticated;
-create or replace function public.open_project_review(p_project_id uuid)
-returns void language plpgsql security definer set search_path = '' as $$
-declare assignment_total integer; member_total integer; complete_coders integer;
+drop function if exists public.open_project_review(uuid);
+
+-- Opening review is automatic after both project members submit every assignment.
+-- Lock the project row so simultaneous final submissions cannot miss each other.
+drop trigger if exists annotations_auto_open_review on public.annotations;
+drop function if exists public.auto_open_review_after_annotation();
+create function public.auto_open_review_after_annotation()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare assignment_total integer; member_total integer; complete_coders integer; locked_project uuid;
 begin
-  if not public.is_project_owner(p_project_id) then raise exception 'Only the project owner can open review'; end if;
-  select count(*) into assignment_total from public.assignments a where a.project_id=p_project_id;
-  select count(*) into member_total from public.project_members m where m.project_id=p_project_id;
-  if assignment_total=0 then raise exception 'Draw the sample before opening review'; end if;
-  if member_total <> 2 then raise exception 'This workspace expects exactly two coders'; end if;
+  select p.id into locked_project from public.projects p where p.id=new.project_id for update;
+  if public.project_phase(new.project_id)<>'blind' then return new; end if;
+  select count(*) into assignment_total from public.assignments a where a.project_id=new.project_id;
+  select count(*) into member_total from public.project_members m where m.project_id=new.project_id;
+  if assignment_total=0 or member_total<>2 then return new; end if;
   select count(*) into complete_coders
   from public.project_members m
-  where m.project_id=p_project_id
+  where m.project_id=new.project_id
     and (select count(*) from public.annotations n
-         where n.project_id=p_project_id and n.user_id=m.user_id)=assignment_total;
-  if complete_coders < 2 then raise exception 'Both coders must submit every assigned label before review opens'; end if;
-  update public.projects set phase='discussion' where id=p_project_id;
+         where n.project_id=new.project_id and n.user_id=m.user_id)=assignment_total;
+  if complete_coders=2 then
+    update public.projects set phase='discussion' where id=new.project_id;
+  end if;
+  return new;
 end;
 $$;
-grant execute on function public.open_project_review(uuid) to authenticated;
+create trigger annotations_auto_open_review after insert on public.annotations
+for each row execute function public.auto_open_review_after_annotation();
 
 alter table public.projects enable row level security;
 alter table public.source_dataset enable row level security;
