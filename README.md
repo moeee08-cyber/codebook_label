@@ -31,21 +31,32 @@ Code each assignment in this order: **Inevitability (I)** first, then **Agency (
 
 ### Inevitability (I)
 
-- **2 — High inevitability:** The sentence discusses AI’s trajectory and portrays it as unavoidable or occurring regardless of meaningful human choice. This includes portraying it as unstoppable, the next stage of progress, something humans, organizations, or society must adopt or adapt to, or a development where nonparticipation means being left behind.
-- **1 — Low inevitability:** The sentence discusses AI’s trajectory and portrays it as contingent on human decisions, institutions, regulation, investment, or collective choices. AI may or may not develop or diffuse in a particular way, and alternative trajectories are possible.
-- **0 — Not present:** An explicit reference to the future (such as future tense or modal verbs) is required for a 1 or 2. If the sentence does not discuss AI’s development, adoption, diffusion, or consequences as a trajectory—how AI was or is now compared to a point in the future—code 0. Sentences that only describe the current state or past development are coded 0.
+**2– High inevitability.** The sentence discusses AI’s trajectory and portrays it as unavoidable or as occurring regardless of meaningful human choice. This includes portraying it as:
+
+- unstoppable
+- the next stage of progress
+- something humans, organizations, or society must adopt or adapt to
+- a development where nonparticipation means being left behind
+
+**1– Low inevitability.** The sentence discusses AI’s trajectory and portrays it as contingent on human decisions, institutions, regulation, investment, or collective choices. AI may or may not develop or diffuse in a particular way, and alternative trajectories are possible.
+
+**0 – Not present.** An explicit reference to the future (such as future tense, modal verbs) is required for a 1 or 2. If the sentence does not discuss AI’s development, adoption, diffusion, or consequences as a trajectory, meaning how AI was or is now compared to a point in the future. Sentences that only describe the current state or past development are coded 0.
 
 ### Agency (A)
 
-**Actor scope:** Only public or public-serving actors count (e.g., employees, people in general, government organizations). Private-serving actors (e.g., managers, individual companies) do not count.
+Actor scope: Only public or **public-serving actors count (e.g., employees, people in general, government organizations). Private-serving actors (e.g., managers, individual companies) do not count.**
 
-- **2 — High agency:** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
-- **1 — Low agency:** Code 1 if either applies:
-  - The sentence portrays public or public-serving actors as mainly reacting or adapting to forces already set in motion, with little meaningful capacity to shape whether or how AI develops or affects society.
-  - The sentence describes AI impacting actors without indicating that those actors can shape that impact. These sentences count as agency-present because they have implications for how humans can act on AI, and they are coded low because the humans are only being affected.
-- **0 — Not present:** Code 0 if either applies:
-  - The sentence does not describe how human or institutional actors can act in relation to AI’s development, adoption, diffusion, or consequences, and does not describe AI impacting humans.
-  - The only actors in the sentence are private-serving.
+**2 – High agency.** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
+
+**1 – Low agency.** Code 2 if either of these applies:
+
+- The sentence portrays public or public-serving actors as mainly reacting or adapting to forces already set in motion, with little meaningful capacity to shape whether or how AI develops or affects society.
+- The sentence describes AI impacting actors without indicating that those actors can shape that impact. These sentences count as agency-present because they have implications for how humans can act on AI, and they are coded low because the humans are only being affected.
+
+**0 – Not present.** Code 0 if either of these applies:
+
+- The sentence does not describe how human or institutional actors can act in relation to AI’s development, adoption, diffusion, or consequences, and does not describe AI impacting humans.
+- The only actors in the sentence are private-serving.
 
 In the current workbook the six eligible pool sizes are Agency non-presence 48, low 29, high 43; Inevitability non-presence 43, low 35, high 39. Therefore the largest equal count for all six strata is `a = 29`.
 
