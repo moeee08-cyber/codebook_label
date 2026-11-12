@@ -6,3 +6,4 @@
 seed_source_dataset.sql
 node_modules/
 dist/
+__pycache__/
