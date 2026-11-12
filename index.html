@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f8fc" />
+  <title>Codebook — AI Annotation Lab</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#"><span class="brand-mark">C</span><span>codebook<small>AI ANNOTATION LAB</small></span></a>
+      <div class="workspace-label">WORKSPACE</div>
+      <div id="projectPicker" class="project-picker"></div>
+      <nav id="nav" class="nav">
+        <button data-view="label" class="nav-item active"><span>◉</span> Independent coding</button>
+        <button data-view="reliability" class="nav-item"><span>▦</span> Reliability</button>
+        <button data-view="review" class="nav-item"><span>↔</span> Consensus review</button>
+        <button data-view="data" class="nav-item"><span>⌁</span> Data & sampling</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="secure-dot"></div><div><b>Blind coding</b><small>Partner labels hidden until review</small></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div id="breadcrumb">AI Annotation Lab <span>/</span> <b>Independent coding</b></div><div class="top-actions"><select id="runPicker" class="project-select hidden" aria-label="Sample run"></select><span id="connectionStatus" class="connection"><i></i> Not connected</span><span id="userBadge" class="user-badge"></span><button id="signOut" class="button subtle hidden">Sign out</button></div></header>
+      <section id="content" class="content"></section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
