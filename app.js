@@ -91,6 +91,12 @@ async function renderLabel(){
   const done=state.assignments.length-todo.length;
   root.innerHTML=pageHead('BLIND CODING',`Good ${esc(coderName())}, ready to code?`,`Your partner's labels stay hidden. Submit each sentence once; your original labels are preserved.`)+`<div class="stat-grid"><div class="stat"><span>Assigned to you</span><b>${state.assignments.length}</b></div><div class="stat"><span>Submitted</span><b>${done}</b></div><div class="stat"><span>Remaining</span><b>${todo.length}</b></div><div class="stat"><span>Project phase</span><b style="font-size:17px">${state.project.phase==='blind'?'Blind':'Discussion'}</b></div></div>`;
   if(state.project.phase!=='blind'){root.insertAdjacentHTML('beforeend',`<div class="notice">Independent coding is closed. You can review disagreements in Consensus Review.</div>`);return;}
+  if(!state.assignments.length){
+    const isOwner=state.project.owner_id===state.user.id;
+    root.insertAdjacentHTML('beforeend',`<div class="panel empty"><div class="icon">⌁</div><h3>No sample has been drawn yet</h3><p>${isOwner?'Choose a seed and a count for each category in Data & sampling, then draw the sample to create coding assignments.':'The project owner needs to draw a sample in Data & sampling before coding assignments appear.'}</p>${isOwner?'<button class="button" id="goSampling">Go to Data & sampling</button>':''}</div>`);
+    $('#goSampling')?.addEventListener('click',()=> $('[data-view="data"]').click());
+    return;
+  }
   if(!todo.length){root.insertAdjacentHTML('beforeend',`<div class="panel empty"><div class="icon">✓</div><h3>All assigned sentences submitted</h3><p>Your partner's original labels remain hidden until the project owner opens review.</p></div>`);return;}
   state.current=todo[0];state.draft={presence:null,high_low:null,reasoning:''};const sentence=state.sentences[state.current.sentence_id];
   root.appendChild(cardSentence(sentence?.sentence||'',`${state.current.dimension} · ${done+1} of ${state.assignments.length}`));
