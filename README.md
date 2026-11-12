@@ -4,7 +4,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 
 ## Features
 
-- Email/password accounts and shared project invite codes.
+- Passwordless anonymous coder identities with display names and shared project invite codes.
 - The golden-label workbook is seeded into the database once. Coders never upload the workbook in the app or browse its labels.
 - Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Each draw is saved as a separate run; total assignments per run are `6 × a`.
 - Independent labeling with Presence followed by conditional High/Low, plus optional reasoning.
@@ -37,7 +37,7 @@ In the current workbook the six eligible pool sizes are Agency non-presence 48, 
    ```
 
    This creates `seed_source_dataset.sql` locally. Open it, paste it into Supabase SQL Editor, and run it once to preload the source dataset. `.gitignore` excludes the generated SQL and workbook files; do not commit either.
-3. In Supabase Auth settings, enable email/password sign-in and add the GitHub Pages URL (plus `http://localhost:8000/**` for local preview) to allowed redirect URLs. For a closed study, disable public sign-up after both coder accounts have been created.
+3. In Supabase Dashboard, open **Authentication → Sign In / Providers → Anonymous Sign-Ins** and enable anonymous sign-ins. No email registration, password, or email redirect URL is needed. Anonymous users are saved in their current browser; use a different browser or browser profile for each coder. Clearing browser data or switching devices creates a new identity, so the old coder's projects and labels will not follow automatically.
 4. Open the app and enter the Supabase Project URL and anon/publishable key. These are stored in the local browser. Never use a service-role key in the browser.
 5. Create a project and share its invite code with the second coder. Choose a seed and count `a`; the database creates six sample strata and keeps each run separate. After both coders submit all assignments, reliability and discussion open automatically.
 

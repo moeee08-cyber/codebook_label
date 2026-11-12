@@ -10,6 +10,7 @@ const titleFor = view => ({label:'Independent coding',reliability:'Reliability',
 const updateHeader = () => { $('#breadcrumb').innerHTML = `AI Annotation Lab <span>/</span> <b>${esc(titleFor(state.view))}</b>`; };
 
 function storedConfig() { return {url:localStorage.getItem('lab:supabase-url')||'', key:localStorage.getItem('lab:supabase-key')||''}; }
+function coderName(user=state.user) { return user?.user_metadata?.display_name || localStorage.getItem('lab:coder-name') || user?.email?.split('@')[0] || 'Coder'; }
 function connect(url, key) {
   localStorage.setItem('lab:supabase-url', url.trim());
   localStorage.setItem('lab:supabase-key', key.trim());
@@ -19,7 +20,7 @@ function connect(url, key) {
 }
 function syncAuth() {
   $('#signOut').classList.toggle('hidden', !state.user);
-  $('#userBadge').textContent = state.user?.email || '';
+  $('#userBadge').textContent = state.user ? coderName() : '';
   if (!state.user) { state.projects=[]; state.project=null; setConnection(false,'Sign in to connect'); renderAuth(); return; }
   loadProjects();
 }
@@ -30,11 +31,10 @@ function renderAuth() {
   <div class="field"><label>Supabase project URL</label><input id="sbUrl" placeholder="https://your-project.supabase.co" value="${esc(storedConfig().url)}"></div>
   <div class="field"><label>Anon / publishable key</label><input id="sbKey" type="password" placeholder="eyJ…" value="${esc(storedConfig().key)}"></div>
   <button class="button" id="connectBtn">Connect</button></div>
-  ${state.supabase?`<div class="panel"><h2>Sign in or create an account</h2><p class="sub">Use the same email for each coding session. Blind labels stay private until discussion is opened.</p><div class="field"><label>Email</label><input id="email" type="email" autocomplete="username" placeholder="you@university.edu"></div><div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="At least 8 characters"></div><div class="row"><button class="button" id="loginBtn">Sign in</button><button class="button secondary" id="signupBtn">Create account</button></div></div>`:''}
-  <div class="notice">Setup checklist: create a Supabase project, run <code>schema.sql</code> from the repository, then paste its URL and anon key here. Configuration stays in this browser and is not written to GitHub.</div></div>`;
+  ${state.supabase?`<div class="panel"><h2>Enter as a coder</h2><p class="sub">Choose a display name and continue. No email or password is needed. Supabase creates a separate anonymous coder identity in this browser.</p><div class="field"><label>Your display name</label><input id="displayName" maxlength="60" autocomplete="name" placeholder="e.g. Billy" value="${esc(localStorage.getItem('lab:coder-name')||'')}"></div><button class="button" id="anonymousBtn">Continue</button><p class="sub">Use a separate browser or browser profile for each coder. This anonymous identity is saved in this browser.</p></div>`:''}
+  <div class="notice">Setup checklist: create a Supabase project, enable anonymous sign-ins in its Auth settings, run <code>schema.sql</code>, then paste its URL and anon key here. Configuration stays in this browser and is not written to GitHub.</div></div>`;
   $('#connectBtn').onclick=()=>{try{connect($('#sbUrl').value,$('#sbKey').value);toast('Database client configured');}catch(e){toast(e.message)}};
-  $('#loginBtn')?.addEventListener('click', async()=>{const {error}=await state.supabase.auth.signInWithPassword({email:$('#email').value,password:$('#password').value});if(error)toast(error.message)});
-  $('#signupBtn')?.addEventListener('click', async()=>{const {error}=await state.supabase.auth.signUp({email:$('#email').value,password:$('#password').value});if(error)toast(error.message);else toast('Account created. Check email if confirmation is enabled.')});
+  $('#anonymousBtn')?.addEventListener('click', async()=>{const name=$('#displayName').value.trim();if(!name)return toast('Enter a display name');localStorage.setItem('lab:coder-name',name);const {error}=await state.supabase.auth.signInAnonymously({options:{data:{display_name:name}}});if(error)toast(error.message)});
 }
 
 async function loadProjects() {
@@ -60,7 +60,7 @@ function renderProjectPicker(){
 }
 function renderProjectGate(){
   updateHeader();
-  $('#content').innerHTML=`<div class="auth-wrap"><div class="eyebrow">Start a coding project</div><div class="page-head"><div><h1>Create or join a workspace</h1><p>Both coders need an account and the same project.</p></div></div><div class="panel"><h2>Create project</h2><div class="field"><label>Project name</label><input id="newProjectName" placeholder="AI Agency & Inevitability"></div><button class="button" id="createProject">Create workspace</button><div class="divider"></div><h2>Join with invite code</h2><div class="field"><label>Invite code</label><input id="joinCode" placeholder="Paste the project code"></div><button class="button secondary" id="joinProject">Join project</button></div></div>`;
+  $('#content').innerHTML=`<div class="auth-wrap"><div class="eyebrow">Start a coding project</div><div class="page-head"><div><h1>Create or join a workspace</h1><p>Both coders enter with their own browser identity and join the same project.</p></div></div><div class="panel"><h2>Create project</h2><div class="field"><label>Project name</label><input id="newProjectName" placeholder="AI Agency & Inevitability"></div><button class="button" id="createProject">Create workspace</button><div class="divider"></div><h2>Join with invite code</h2><div class="field"><label>Invite code</label><input id="joinCode" placeholder="Paste the project code"></div><button class="button secondary" id="joinProject">Join project</button></div></div>`;
   $('#createProject').onclick=createProject;$('#joinProject').onclick=joinProject;
 }
 async function createProject(){
@@ -89,7 +89,7 @@ async function renderLabel(){
   const root=$('#content');try{await getAssignments()}catch(e){return renderError(root,e)}
   const todo=state.assignments.filter(a=>!state.mine[a.id]);
   const done=state.assignments.length-todo.length;
-  root.innerHTML=pageHead('BLIND CODING',`Good ${state.user.email.split('@')[0]}, ready to code?`,`Your partner's labels stay hidden. Submit each sentence once; your original labels are preserved.`)+`<div class="stat-grid"><div class="stat"><span>Assigned to you</span><b>${state.assignments.length}</b></div><div class="stat"><span>Submitted</span><b>${done}</b></div><div class="stat"><span>Remaining</span><b>${todo.length}</b></div><div class="stat"><span>Project phase</span><b style="font-size:17px">${state.project.phase==='blind'?'Blind':'Discussion'}</b></div></div>`;
+  root.innerHTML=pageHead('BLIND CODING',`Good ${esc(coderName())}, ready to code?`,`Your partner's labels stay hidden. Submit each sentence once; your original labels are preserved.`)+`<div class="stat-grid"><div class="stat"><span>Assigned to you</span><b>${state.assignments.length}</b></div><div class="stat"><span>Submitted</span><b>${done}</b></div><div class="stat"><span>Remaining</span><b>${todo.length}</b></div><div class="stat"><span>Project phase</span><b style="font-size:17px">${state.project.phase==='blind'?'Blind':'Discussion'}</b></div></div>`;
   if(state.project.phase!=='blind'){root.insertAdjacentHTML('beforeend',`<div class="notice">Independent coding is closed. You can review disagreements in Consensus Review.</div>`);return;}
   if(!todo.length){root.insertAdjacentHTML('beforeend',`<div class="panel empty"><div class="icon">✓</div><h3>All assigned sentences submitted</h3><p>Your partner's original labels remain hidden until the project owner opens review.</p></div>`);return;}
   state.current=todo[0];state.draft={presence:null,high_low:null,reasoning:''};const sentence=state.sentences[state.current.sentence_id];
