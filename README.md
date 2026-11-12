@@ -25,6 +25,8 @@ golden_agency_high_low
 
 The existing workbook at `/Users/wumengmeng/Desktop/AI_label_second_round_golden_label.xlsx` has these columns. Presence and High/Low labels use `0` and `1`; High/Low is sampled only where the matching Presence label is `1`.
 
+In the current workbook the six eligible pool sizes are Agency non-presence 48, low 29, high 43; Inevitability non-presence 43, low 35, high 39. Therefore the largest equal count for all six strata is `a = 29`.
+
 ## Supabase setup
 
 1. Create a Supabase project and run [`schema.sql`](./schema.sql) in its SQL Editor. This creates tables, row access policies, project join-code functions, sampling functions, and Realtime publication entries.
