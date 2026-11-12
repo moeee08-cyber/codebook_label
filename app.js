@@ -135,71 +135,36 @@ async function showCase(item,coders){const root=$('#caseDetail');const sentence=
 async function loadNotes(id){const {data,error}=await state.supabase.from('discussion_notes').select('body,user_id,created_at').eq('assignment_id',id).order('created_at');if(error)return toast(error.message);$('#notes').innerHTML=(data||[]).map(n=>`<div class="note">${esc(n.body)}<small>${n.user_id===state.user.id?'You':'Partner'} · ${new Date(n.created_at).toLocaleString()}</small></div>`).join('')||'<p class="sub">No discussion notes yet.</p>';}
 
 function normRow(row){const out={};Object.entries(row).forEach(([k,v])=>out[String(k).trim()]=v);return out;}
-function getGolden(row,key){const value=(row.__source||row)[key];return value===undefined||value===null?'':String(value).trim();}
-function stratifiedPools(rows){const definitions=[['Agency','non_presence','golden_agency_presence','0'],['Agency','low','golden_agency_high_low','0'],['Agency','high','golden_agency_high_low','1'],['Inevitability','non_presence','golden_inevitability_presence','0'],['Inevitability','low','golden_inevitability_high_low','0'],['Inevitability','high','golden_inevitability_high_low','1']];return definitions.map(([dimension,category,labelColumn,label])=>({dimension,category,rows:rows.filter(r=>category==='non_presence'?getGolden(r,labelColumn)===label:getGolden(r,`golden_${dimension.toLowerCase()}_presence`)==='1'&&getGolden(r,labelColumn)===label)}));}
-async function renderData(){const root=$('#content');if(state.project.owner_id!==state.user.id){root.innerHTML=pageHead('PROJECT DATA','Managed by the project owner','Your assignments and coding queue are ready in Independent coding.')+'<div class="panel empty"><div class="icon">⌁</div><h3>Data import and sampling are owner-only</h3><p>The owner uploads the golden-label workbook, draws the sample, and exports the final workbook. Your blind labels remain private.</p></div>';return;}root.innerHTML=pageHead('PROJECT SETUP','Import, sample, and manage data','Upload the golden-label Excel workbook, draw reproducible balanced samples, and invite your second coder.')+`<div class="grid"><section class="panel"><h2>1 · Import golden-label workbook</h2><p class="sub">Excel is parsed in your browser. Source labels are stored separately from coder-visible sentence text.</p><div class="field"><label>Workbook (.xlsx)</label><input id="xlsxFile" type="file" accept=".xlsx,.xls"></div><div class="notice">Expected columns include <code>sentence</code> and golden labels: <code>golden_agency_presence</code>, <code>golden_agency_high_low</code>, <code>golden_inevitability_presence</code>, <code>golden_inevitability_high_low</code>.</div><button class="button" id="importWorkbook">Import workbook</button><div id="importStatus" class="sub"></div></section><section class="panel"><h2>2 · Draw a balanced sample</h2><p class="sub">Each of six strata gets exactly a rows. Sampling is without replacement and uses the seed you provide.</p><div class="grid"><div class="field"><label>Seed number</label><input id="sampleSeed" type="number" value="2026"></div><div class="field"><label>Count per category (a)</label><input id="sampleCount" type="number" min="1" value="10"></div></div><div id="poolCounts" class="sub">Import a workbook to see eligible rows.</div><button class="button" id="drawSample">Draw & assign six strata</button></section></div><section class="panel"><div class="row" style="justify-content:space-between"><div><h2>3 · Invite your coding partner</h2><p class="sub">Share this code with the other coder. Both users sign in with separate accounts.</p></div><span class="pill violet">${esc(state.project.join_code)}</span></div><button class="button subtle" id="copyCode">Copy invite code</button></section><section class="panel"><div class="row" style="justify-content:space-between"><div><h2>Export results</h2><p class="sub">Download source labels, independent annotations, and confirmed consensus labels.</p></div><button id="exportWorkbook" class="button secondary">Export Excel</button></div></section>`;
+async function renderData(){
+  const root=$('#content');
+  if(state.project.owner_id!==state.user.id){
+    root.innerHTML=pageHead('PROJECT DATA','Managed by the project owner','Your assignments and coding queue are ready in Independent coding.')+'<div class="panel empty"><div class="icon">⌁</div><h3>Sampling is managed by the project owner</h3><p>The golden-label dataset is preloaded in the shared database. The owner draws a sample; coders do not upload or browse the gold labels.</p></div>';
+    return;
+  }
+  root.innerHTML=pageHead('PROJECT SETUP','Sample, invite, and export','The golden-label workbook is preloaded in the shared database. Choose a seed and count to draw a reproducible sample.')+
+    `<div class="grid"><section class="panel"><h2>1 · Dataset strata</h2><p class="sub">Eligible rows available in the preloaded golden-label database.</p><div id="poolCounts" class="sub">Loading stratum counts…</div></section><section class="panel"><h2>2 · Draw a balanced sample</h2><p class="sub">Each of the six strata gets exactly a rows. Sampling is without replacement within each stratum.</p><div class="grid"><div class="field"><label>Seed number</label><input id="sampleSeed" type="number" value="2026"></div><div class="field"><label>Count per category (a)</label><input id="sampleCount" type="number" min="1" value="10"></div></div><button class="button" id="drawSample">Draw & assign six strata</button></section></div>
+    <section class="panel"><div class="row" style="justify-content:space-between"><div><h2>3 · Invite your coding partner</h2><p class="sub">Share this code with the other coder. Both use separate accounts.</p></div><span class="pill violet">${esc(state.project.join_code)}</span></div><button class="button subtle" id="copyCode">Copy invite code</button></section>
+    <section class="panel"><div class="row" style="justify-content:space-between"><div><h2>Export results</h2><p class="sub">After blind coding is complete, download source labels, independent annotations, and consensus labels.</p></div><button id="exportWorkbook" class="button secondary" ${state.project.phase==='blind'?'disabled':''}>Export Excel</button></div></section>`;
   $('#copyCode').onclick=async()=>{await navigator.clipboard.writeText(state.project.join_code);toast('Invite code copied')};
-  $('#importWorkbook').onclick=importWorkbook;
   $('#drawSample').onclick=drawSample;
   $('#exportWorkbook').onclick=exportWorkbook;
-  try{const {data}=await state.supabase.from('gold_labels').select('golden_labels,sentence_id').eq('project_id',state.project.id);if(data?.length){const sentenceIds=data.map(x=>x.sentence_id);const {data:sentenceRows}=await state.supabase.from('sentences').select('id,external_id').in('id',sentenceIds);const ext=Object.fromEntries((sentenceRows||[]).map(x=>[x.id,x.external_id]));state.importRows=data.map(x=>({...x.golden_labels,__external_id:ext[x.sentence_id]}));renderPoolCounts(state.importRows)}}catch{}
+  const {data,error}=await state.supabase.rpc('source_stratum_counts',{p_project_id:state.project.id});
+  if(error){$('#poolCounts').textContent=error.message;return;}
+  renderPoolCounts(data||[]);
 }
-function renderPoolCounts(rows){const pools=stratifiedPools(rows);$('#poolCounts').innerHTML=`<div class="table-wrap"><table><thead><tr><th>Dimension</th><th>Stratum</th><th>Eligible</th></tr></thead><tbody>${pools.map(p=>`<tr><td>${p.dimension}</td><td>${p.category}</td><td>${p.rows.length}</td></tr>`).join('')}</tbody></table></div>`;}
-async function importWorkbook(){
-  const file=$('#xlsxFile').files[0];
-  if(!file)return toast('Choose the golden-label workbook');
-  const status=$('#importStatus');status.textContent='Reading workbook…';
-  try{
-    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
-    const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}).map(normRow);
-    if(!raw.length)throw Error('The first worksheet has no rows');
-    const required=['sentence','golden_agency_presence','golden_agency_high_low','golden_inevitability_presence','golden_inevitability_high_low'];
-    const missing=required.filter(k=>!(k in raw[0]));
-    if(missing.length)throw Error(`Missing required columns: ${missing.join(', ')}`);
-    state.importRows=raw.map((r,i)=>({...r,__external_id:String(i+2)}));
-    renderPoolCounts(state.importRows);
-    let imported=0;
-    for(let start=0;start<state.importRows.length;start+=100){
-      const chunk=state.importRows.slice(start,start+100);
-      const sentences=chunk.map(r=>({project_id:state.project.id,external_id:r.__external_id,sentence:String(r.sentence)}));
-      const {data:stored,error}=await state.supabase.from('sentences').upsert(sentences,{onConflict:'project_id,external_id'}).select('id,external_id');
-      if(error)throw error;
-      const byExternal=Object.fromEntries(stored.map(s=>[s.external_id,s.id]));
-      const golden=chunk.map(r=>{
-        const source=Object.fromEntries(Object.entries(r).filter(([k])=>k!=='__external_id'));
-        return {project_id:state.project.id,sentence_id:byExternal[r.__external_id],golden_labels:source,source_data:source};
-      });
-      const res=await state.supabase.from('gold_labels').upsert(golden,{onConflict:'sentence_id'});
-      if(res.error)throw res.error;
-      imported+=chunk.length;
-    }
-    status.textContent=`Imported ${imported} rows. Pool sizes are shown below.`;toast(`Imported ${imported} rows`);
-  }catch(e){status.textContent=e.message;toast(e.message)}
+function renderPoolCounts(rows){
+  $('#poolCounts').innerHTML=`<div class="table-wrap"><table><thead><tr><th>Dimension</th><th>Stratum</th><th>Eligible</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${esc(p.dimension)}</td><td>${esc(p.category)}</td><td>${p.eligible_count}</td></tr>`).join('')}</tbody></table></div>`;
 }
 async function drawSample(){
-  const rows=state.importRows;
-  if(!rows?.length)return toast('Import or reselect the workbook first');
   const count=Number($('#sampleCount').value),seed=Number($('#sampleSeed').value);
-  if(!Number.isInteger(count)||count<1||!Number.isInteger(seed))return toast('Enter an integer seed and positive count');
-  const pools=stratifiedPools(rows),insufficient=pools.find(p=>p.rows.length<count);
-  if(insufficient)return toast(`${insufficient.dimension}/${insufficient.category} has only ${insufficient.rows.length} eligible rows`);
-  const {data:run,error:runError}=await state.supabase.from('sample_runs').insert({project_id:state.project.id,seed,count_per_stratum:count,created_by:state.user.id}).select().single();
-  if(runError)return toast(runError.message);
-  const rng=mulberry32(seed),inserts=[];
-  for(const pool of pools){
-    const shuffled=[...pool.rows];
-    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
-    for(const row of shuffled.slice(0,count)){
-      const {data:sentence,error}=await state.supabase.from('sentences').select('id').eq('project_id',state.project.id).eq('external_id',row.__external_id).single();
-      if(error)return toast(`Could not map workbook row to imported sentence: ${error.message}`);
-      inserts.push({project_id:state.project.id,sentence_id:sentence.id,dimension:pool.dimension,sample_run_id:run.id});
-    }
-  }
-  const {error}=await state.supabase.from('assignments').insert(inserts);
+  if(!Number.isInteger(count)||count<1||!Number.isSafeInteger(seed))return toast('Enter a positive count and a safe integer seed');
+  const {data,error}=await state.supabase.rpc('draw_balanced_sample',{p_project_id:state.project.id,p_seed:seed,p_count:count});
   if(error)return toast(error.message);
-  state.runId=run.id;await loadRuns();toast(`Assigned ${inserts.length} items (${count} per each of six categories)`);await renderView();
+  state.runId=data;
+  await loadRuns();
+  toast(`Created sample run: ${count} items in each of six categories`);
+  await renderView();
 }
-function mulberry32(seed){return function(){let t=seed+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
 async function exportWorkbook(){const {data:sentences,error}=await state.supabase.from('sentences').select('id,external_id,sentence').eq('project_id',state.project.id);if(error)return toast(error.message);const {data:gold}=await state.supabase.from('gold_labels').select('sentence_id,source_data').eq('project_id',state.project.id);const {data:assignments}=await state.supabase.from('assignments').select('*').eq('project_id',state.project.id);const {data:labels}=await state.supabase.from('annotations').select('*').eq('project_id',state.project.id);const {data:consensus}=await state.supabase.from('consensus').select('*').eq('project_id',state.project.id);const source=Object.fromEntries((gold||[]).map(g=>[g.sentence_id,g.source_data]));const byAssignment=Object.fromEntries((assignments||[]).map(a=>[a.id,a]));const output=(labels||[]).map(l=>{const assignment=byAssignment[l.assignment_id];const final=(consensus||[]).find(c=>c.assignment_id===l.assignment_id);return {...(source[assignment?.sentence_id]||{}),sentence:sentences.find(s=>s.id===assignment?.sentence_id)?.sentence,dimension:assignment?.dimension,coder_id:l.user_id,presence:l.presence?1:0,high_low:l.high_low===null?null:l.high_low?1:0,reasoning:l.reasoning,submitted_at:l.submitted_at,consensus_presence:final?.presence===undefined?null:Number(final.presence),consensus_high_low:final?.high_low===null||final?.high_low===undefined?null:Number(final.high_low),consensus_confirmed:!!final?.confirmed_at}});const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(output),'Labels');XLSX.writeFile(wb,`${state.project.name.replace(/[^a-z0-9]+/gi,'_')}_coding_export.xlsx`);}
 
 $('#nav').addEventListener('click',event=>{const btn=event.target.closest('[data-view]');if(!btn)return;state.view=btn.dataset.view;$$('.nav-item').forEach(x=>x.classList.toggle('active',x===btn));renderView()});

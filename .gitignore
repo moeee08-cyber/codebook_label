@@ -3,5 +3,6 @@
 .env.*
 *.xlsx
 *.xls
+seed_source_dataset.sql
 node_modules/
 dist/

@@ -4,6 +4,16 @@
 
 create extension if not exists pgcrypto;
 
+-- One preloaded source dataset, seeded once from the golden-label workbook.
+-- Authenticated browser clients cannot select this table directly.
+create table if not exists public.source_dataset (
+  external_id text primary key,
+  sentence text not null,
+  golden_labels jsonb not null,
+  source_data jsonb not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -72,6 +82,106 @@ create or replace function public.project_phase(p_project_id uuid)
 returns text language sql stable security definer set search_path = '' as $$
   select p.phase from public.projects p where p.id=p_project_id;
 $$;
+create or replace function public.source_stratum_counts(p_project_id uuid)
+returns table(dimension text, category text, eligible_count bigint)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.is_project_owner(p_project_id) then raise exception 'Only the project owner can inspect sample pool counts'; end if;
+  return query
+    select 'Agency'::text,'non_presence'::text,count(*) from public.source_dataset s where s.golden_labels->>'golden_agency_presence'='0'
+    union all select 'Agency','low',count(*) from public.source_dataset s where s.golden_labels->>'golden_agency_presence'='1' and s.golden_labels->>'golden_agency_high_low'='0'
+    union all select 'Agency','high',count(*) from public.source_dataset s where s.golden_labels->>'golden_agency_presence'='1' and s.golden_labels->>'golden_agency_high_low'='1'
+    union all select 'Inevitability','non_presence',count(*) from public.source_dataset s where s.golden_labels->>'golden_inevitability_presence'='0'
+    union all select 'Inevitability','low',count(*) from public.source_dataset s where s.golden_labels->>'golden_inevitability_presence'='1' and s.golden_labels->>'golden_inevitability_high_low'='0'
+    union all select 'Inevitability','high',count(*) from public.source_dataset s where s.golden_labels->>'golden_inevitability_presence'='1' and s.golden_labels->>'golden_inevitability_high_low'='1';
+end;
+$$;
+grant execute on function public.source_stratum_counts(uuid) to authenticated;
+
+create or replace function public.draw_balanced_sample(p_project_id uuid,p_seed bigint,p_count integer)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  run_id uuid;
+  dimension_name text;
+  category_name text;
+  presence_column text;
+  value_column text;
+  category_value text;
+  eligible_count bigint;
+  picked record;
+  sentence_id uuid;
+begin
+  if not public.is_project_owner(p_project_id) then raise exception 'Only the project owner can draw a sample'; end if;
+  if public.project_phase(p_project_id)<>'blind' then raise exception 'Return the project to blind coding before drawing another sample'; end if;
+  if p_count<1 then raise exception 'Count per category must be positive'; end if;
+
+  for dimension_name,category_name,presence_column,value_column,category_value in
+    select * from (values
+      ('Agency','non_presence','golden_agency_presence','golden_agency_presence','0'),
+      ('Agency','low','golden_agency_presence','golden_agency_high_low','0'),
+      ('Agency','high','golden_agency_presence','golden_agency_high_low','1'),
+      ('Inevitability','non_presence','golden_inevitability_presence','golden_inevitability_presence','0'),
+      ('Inevitability','low','golden_inevitability_presence','golden_inevitability_high_low','0'),
+      ('Inevitability','high','golden_inevitability_presence','golden_inevitability_high_low','1')
+    ) as strata(dimension,category,presence_column,value_column,category_value)
+  loop
+    if category_name='non_presence' then
+      execute 'select count(*) from public.source_dataset where golden_labels->>$1=$2'
+        into eligible_count using value_column,category_value;
+    else
+      execute 'select count(*) from public.source_dataset where golden_labels->>$1=''1'' and golden_labels->>$2=$3'
+        into eligible_count using presence_column,value_column,category_value;
+    end if;
+    if eligible_count<p_count then
+      raise exception '%/% has % eligible rows; requested %',dimension_name,category_name,eligible_count,p_count;
+    end if;
+  end loop;
+
+  insert into public.sample_runs(project_id,seed,count_per_stratum,created_by)
+    values(p_project_id,p_seed,p_count,(select auth.uid())) returning id into run_id;
+
+  for dimension_name,category_name,presence_column,value_column,category_value in
+    select * from (values
+      ('Agency','non_presence','golden_agency_presence','golden_agency_presence','0'),
+      ('Agency','low','golden_agency_presence','golden_agency_high_low','0'),
+      ('Agency','high','golden_agency_presence','golden_agency_high_low','1'),
+      ('Inevitability','non_presence','golden_inevitability_presence','golden_inevitability_presence','0'),
+      ('Inevitability','low','golden_inevitability_presence','golden_inevitability_high_low','0'),
+      ('Inevitability','high','golden_inevitability_presence','golden_inevitability_high_low','1')
+    ) as strata(dimension,category,presence_column,value_column,category_value)
+  loop
+    if category_name='non_presence' then
+      for picked in execute
+        'select external_id,sentence,golden_labels,source_data from public.source_dataset where golden_labels->>$1=$2 order by md5($3||''|''||external_id||''|''||$4||''|''||$5) limit $6'
+        using value_column,category_value,p_seed::text,dimension_name,category_name,p_count
+      loop
+        insert into public.sentences(project_id,external_id,sentence) values(p_project_id,picked.external_id,picked.sentence)
+          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into sentence_id;
+        insert into public.gold_labels(sentence_id,project_id,golden_labels,source_data)
+          values(sentence_id,p_project_id,picked.golden_labels,picked.source_data)
+          on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
+        insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
+          values(p_project_id,sentence_id,run_id,dimension_name);
+      end loop;
+    else
+      for picked in execute
+        'select external_id,sentence,golden_labels,source_data from public.source_dataset where golden_labels->>$1=''1'' and golden_labels->>$2=$3 order by md5($4||''|''||external_id||''|''||$5||''|''||$6) limit $7'
+        using presence_column,value_column,category_value,p_seed::text,dimension_name,category_name,p_count
+      loop
+        insert into public.sentences(project_id,external_id,sentence) values(p_project_id,picked.external_id,picked.sentence)
+          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into sentence_id;
+        insert into public.gold_labels(sentence_id,project_id,golden_labels,source_data)
+          values(sentence_id,p_project_id,picked.golden_labels,picked.source_data)
+          on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
+        insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
+          values(p_project_id,sentence_id,run_id,dimension_name);
+      end loop;
+    end if;
+  end loop;
+  return run_id;
+end;
+$$;
+grant execute on function public.draw_balanced_sample(uuid,bigint,integer) to authenticated;
 create or replace function public.add_project_owner()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
@@ -114,6 +224,7 @@ $$;
 grant execute on function public.open_project_review(uuid) to authenticated;
 
 alter table public.projects enable row level security;
+alter table public.source_dataset enable row level security;
 alter table public.project_members enable row level security;
 alter table public.sentences enable row level security;
 alter table public.gold_labels enable row level security;
@@ -138,7 +249,8 @@ create policy sentences_insert_owner on public.sentences for insert to authentic
 drop policy if exists sentences_update_owner on public.sentences;
 create policy sentences_update_owner on public.sentences for update to authenticated using (public.is_project_owner(project_id)) with check (public.is_project_owner(project_id));
 drop policy if exists gold_owner_only on public.gold_labels;
-create policy gold_owner_only on public.gold_labels for all to authenticated using (public.is_project_owner(project_id)) with check (public.is_project_owner(project_id));
+create policy gold_owner_only on public.gold_labels for select to authenticated using (
+  public.is_project_owner(project_id) and public.project_phase(project_id)='discussion');
 drop policy if exists sample_runs_select_member on public.sample_runs;
 create policy sample_runs_select_member on public.sample_runs for select to authenticated using (public.is_project_member(project_id));
 drop policy if exists sample_runs_insert_owner on public.sample_runs;
@@ -173,7 +285,7 @@ create policy consensus_update_review on public.consensus for update to authenti
 grant select,insert,update on public.projects to authenticated;
 grant select on public.project_members to authenticated;
 grant select,insert,update on public.sentences to authenticated;
-grant select,insert,update on public.gold_labels to authenticated;
+grant select on public.gold_labels to authenticated;
 grant select,insert on public.sample_runs to authenticated;
 grant select,insert on public.assignments to authenticated;
 grant select,insert on public.annotations to authenticated;
@@ -185,7 +297,7 @@ grant select,insert,update on public.consensus to authenticated;
 do $$
 declare tbl text;
 begin
-  foreach tbl in array array['projects','annotations','discussion_notes','consensus'] loop
+  foreach tbl in array array['projects','sample_runs','annotations','discussion_notes','consensus'] loop
     if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename=tbl) then
       execute format('alter publication supabase_realtime add table public.%I',tbl);
     end if;
