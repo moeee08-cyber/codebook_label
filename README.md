@@ -7,7 +7,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 - Passwordless anonymous coder identities with display names and shared project invite codes.
 - The golden-label workbook is seeded into the database once. Coders never upload the workbook in the app or browse its labels.
 - Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Each draw is saved as a separate run; total assignments per run are `6 × a`.
-- Independent labeling with Presence followed by conditional High/Low, plus optional reasoning.
+- Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (2, 1, or 0) and optional reasoning.
 - Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
 - Excel export with source fields, independent labels, and consensus status.
 
@@ -23,7 +23,25 @@ golden_agency_presence
 golden_agency_high_low
 ```
 
-The existing workbook at `/Users/wumengmeng/Desktop/AI_label_second_round_golden_label.xlsx` has these columns. Presence and High/Low labels use `0` and `1`; High/Low is sampled only where the matching Presence label is `1`.
+The existing workbook at `/Users/wumengmeng/Desktop/AI_label_second_round_golden_label.xlsx` has these columns. Source gold labels remain encoded as presence and high/low bits; coder labels are presented and exported as `2`, `1`, or `0`.
+
+## Human coding codebook
+
+Code each assignment in this order: **Inevitability (I)** first, then **Agency (A)**. For each construct, choose exactly one code in the order **2, 1, 0**.
+
+### Inevitability (I)
+
+- **2 — High:** Discusses an AI trajectory and portrays it as unavoidable or proceeding regardless of meaningful human choice. This includes AI described as unstoppable, the next stage of progress, something people or organizations must adopt or adapt to, or a development that leaves nonparticipants behind.
+- **1 — Low:** Discusses an AI trajectory as contingent on human decisions, institutions, regulation, investment, or collective choices; alternative trajectories remain possible.
+- **0 — Not present:** The sentence does not discuss AI development, adoption, diffusion, or consequences as a trajectory from now toward the future. An explicit future reference (such as future tense or a modal) is required for 1 or 2. Current-state or past-only descriptions are 0.
+
+### Agency (A)
+
+Only public or public-serving actors count, such as employees, people in general, or government organizations. Private-serving actors, such as managers or individual companies, do not count.
+
+- **2 — High:** Public or public-serving actors have meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples include regulation, adoption decisions, public influence, and choices that shape AI's impact.
+- **1 — Low:** Public or public-serving actors mainly react or adapt to forces already set in motion, or AI affects them without indicating that they can shape the impact. These are agency-present because people are affected, but the sentence shows little capacity to shape the outcome.
+- **0 — Not present:** The sentence neither describes a qualifying actor acting in relation to AI nor describes AI impacting people. Code 0 when the only actors mentioned are private-serving.
 
 In the current workbook the six eligible pool sizes are Agency non-presence 48, low 29, high 43; Inevitability non-presence 43, low 35, high 39. Therefore the largest equal count for all six strata is `a = 29`.
 
@@ -62,5 +80,5 @@ No workbook, generated SQL seed, Supabase URL, or key is stored in this reposito
 ## Method notes
 
 - Sampling is deterministic for a given workbook row order, seed, and `a`; it is without replacement within each stratum. A sentence can appear under both constructs because Agency and Inevitability are distinct assignments.
-- Reliability is computed per selected sample run from assignments both coders completed. High/Low agreement includes only cases both coders marked Presence=1 and both supplied a High/Low label.
+- Reliability is computed per selected sample run from assignments both coders completed. The app stores code 0 as absence, code 1 as present/low, and code 2 as present/high. Presence agreement compares 0 vs. 1/2; High/Low agreement compares 1 vs. 2 only when both coders marked the construct present.
 - Discussion notes and confirmed consensus do not modify original labels or reliability statistics.
