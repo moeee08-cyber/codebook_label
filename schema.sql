@@ -109,7 +109,7 @@ declare
   category_value text;
   eligible_count bigint;
   picked record;
-  sentence_id uuid;
+  v_sentence_id uuid;
 begin
   if not public.is_project_owner(p_project_id) then raise exception 'Only the project owner can draw a sample'; end if;
   if public.project_phase(p_project_id)<>'blind' then raise exception 'Return the project to blind coding before drawing another sample'; end if;
@@ -156,12 +156,12 @@ begin
         using value_column,category_value,p_seed::text,dimension_name,category_name,p_count
       loop
         insert into public.sentences(project_id,external_id,sentence) values(p_project_id,picked.external_id,picked.sentence)
-          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into sentence_id;
+          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into v_sentence_id;
         insert into public.gold_labels(sentence_id,project_id,golden_labels,source_data)
-          values(sentence_id,p_project_id,picked.golden_labels,picked.source_data)
+          values(v_sentence_id,p_project_id,picked.golden_labels,picked.source_data)
           on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
         insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
-          values(p_project_id,sentence_id,run_id,dimension_name);
+          values(p_project_id,v_sentence_id,run_id,dimension_name);
       end loop;
     else
       for picked in execute
@@ -169,12 +169,12 @@ begin
         using presence_column,value_column,category_value,p_seed::text,dimension_name,category_name,p_count
       loop
         insert into public.sentences(project_id,external_id,sentence) values(p_project_id,picked.external_id,picked.sentence)
-          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into sentence_id;
+          on conflict(project_id,external_id) do update set sentence=excluded.sentence returning id into v_sentence_id;
         insert into public.gold_labels(sentence_id,project_id,golden_labels,source_data)
-          values(sentence_id,p_project_id,picked.golden_labels,picked.source_data)
+          values(v_sentence_id,p_project_id,picked.golden_labels,picked.source_data)
           on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
         insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
-          values(p_project_id,sentence_id,run_id,dimension_name);
+          values(p_project_id,v_sentence_id,run_id,dimension_name);
       end loop;
     end if;
   end loop;
