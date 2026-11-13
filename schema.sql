@@ -51,6 +51,46 @@ create table if not exists public.assignments (
   dimension text not null check (dimension in ('Agency','Inevitability')),
   created_at timestamptz not null default now(), unique(project_id,sentence_id,dimension,sample_run_id)
 );
+-- Every sampled sentence is assigned for both constructs. For the latest
+-- already-coded run, preserve its labels and open a fresh run over the same
+-- sentences so coding can start again in the required I-then-A order.
+with latest_runs as (
+  select distinct on (r.project_id)
+    r.id,r.project_id,r.seed,r.count_per_stratum,r.created_by
+  from public.sample_runs r order by r.project_id,r.created_at desc
+), annotated_latest as (
+  select l.* from latest_runs l
+  where exists (
+    select 1 from public.assignments a join public.annotations n on n.assignment_id=a.id
+    where a.sample_run_id=l.id
+  )
+), fresh_runs as (
+  insert into public.sample_runs(project_id,seed,count_per_stratum,created_by)
+  select project_id,seed,count_per_stratum,created_by from annotated_latest
+  returning id,project_id
+), copied as (
+  insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
+  select fr.project_id,a.sentence_id,fr.id,d.dimension
+  from fresh_runs fr
+  join annotated_latest old on old.project_id=fr.project_id
+  join public.assignments a on a.sample_run_id=old.id
+  cross join (values ('Inevitability'::text),('Agency'::text)) as d(dimension)
+  on conflict(project_id,sentence_id,dimension,sample_run_id) do nothing
+  returning project_id
+), expanded as (
+  insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
+  select distinct a.project_id,a.sentence_id,a.sample_run_id,d.dimension
+  from latest_runs l join public.assignments a on a.sample_run_id=l.id
+  cross join (values ('Inevitability'::text),('Agency'::text)) as d(dimension)
+  where not exists (
+    select 1 from public.annotations n join public.assignments prior on prior.id=n.assignment_id
+    where prior.sample_run_id=l.id
+  )
+  on conflict(project_id,sentence_id,dimension,sample_run_id) do nothing
+  returning project_id
+)
+update public.projects p set phase='blind'
+where p.id in (select project_id from copied union select project_id from expanded);
 create table if not exists public.annotations (
   id uuid primary key default gen_random_uuid(), project_id uuid not null references public.projects(id) on delete cascade,
   assignment_id uuid not null references public.assignments(id) on delete cascade,
@@ -161,7 +201,8 @@ begin
           values(v_sentence_id,p_project_id,picked.golden_labels,picked.source_data)
           on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
         insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
-          values(p_project_id,v_sentence_id,run_id,dimension_name);
+          values(p_project_id,v_sentence_id,run_id,'Inevitability'),(p_project_id,v_sentence_id,run_id,'Agency')
+          on conflict(project_id,sentence_id,dimension,sample_run_id) do nothing;
       end loop;
     else
       for picked in execute
@@ -174,7 +215,8 @@ begin
           values(v_sentence_id,p_project_id,picked.golden_labels,picked.source_data)
           on conflict(sentence_id) do update set golden_labels=excluded.golden_labels,source_data=excluded.source_data;
         insert into public.assignments(project_id,sentence_id,sample_run_id,dimension)
-          values(p_project_id,v_sentence_id,run_id,dimension_name);
+          values(p_project_id,v_sentence_id,run_id,'Inevitability'),(p_project_id,v_sentence_id,run_id,'Agency')
+          on conflict(project_id,sentence_id,dimension,sample_run_id) do nothing;
       end loop;
     end if;
   end loop;
@@ -223,24 +265,27 @@ $$;
 grant execute on function public.join_project_with_code(text) to authenticated;
 drop function if exists public.open_project_review(uuid);
 
--- Opening review is automatic after both project members submit every assignment.
+-- Opening review is automatic after both project members submit every assignment
+-- in the latest sample run.
 -- Lock the project row so simultaneous final submissions cannot miss each other.
 drop trigger if exists annotations_auto_open_review on public.annotations;
 drop function if exists public.auto_open_review_after_annotation();
 create function public.auto_open_review_after_annotation()
 returns trigger language plpgsql security definer set search_path = '' as $$
-declare assignment_total integer; member_total integer; complete_coders integer; locked_project uuid;
+declare assignment_total integer; member_total integer; complete_coders integer; locked_project uuid; active_run uuid;
 begin
   select p.id into locked_project from public.projects p where p.id=new.project_id for update;
   if public.project_phase(new.project_id)<>'blind' then return new; end if;
-  select count(*) into assignment_total from public.assignments a where a.project_id=new.project_id;
+  select r.id into active_run from public.sample_runs r where r.project_id=new.project_id order by r.created_at desc limit 1;
+  if active_run is null then return new; end if;
+  select count(*) into assignment_total from public.assignments a where a.project_id=new.project_id and a.sample_run_id=active_run;
   select count(*) into member_total from public.project_members m where m.project_id=new.project_id;
   if assignment_total=0 or member_total<>2 then return new; end if;
   select count(*) into complete_coders
   from public.project_members m
   where m.project_id=new.project_id
-    and (select count(*) from public.annotations n
-         where n.project_id=new.project_id and n.user_id=m.user_id)=assignment_total;
+    and (select count(*) from public.annotations n join public.assignments a on a.id=n.assignment_id
+         where n.project_id=new.project_id and n.user_id=m.user_id and a.sample_run_id=active_run)=assignment_total;
   if complete_coders=2 then
     update public.projects set phase='discussion' where id=new.project_id;
   end if;

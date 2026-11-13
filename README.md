@@ -6,7 +6,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 
 - Passwordless anonymous coder identities with display names and shared project invite codes.
 - The golden-label workbook is seeded into the database once. Coders never upload the workbook in the app or browse its labels.
-- Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Each draw is saved as a separate run; total assignments per run are `6 × a`.
+- Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Every sampled sentence receives both an Inevitability and an Agency assignment. Code all sampled sentences for Inevitability first, then all of those same sentences for Agency. A run contains up to `12 × a` assignments; duplicate sentences selected across dimensions are assigned once per construct.
 - Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (2, 1, or 0) and optional reasoning.
 - Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
 - Excel export with source fields, independent labels, and consensus status.
@@ -62,7 +62,7 @@ In the current workbook the six eligible pool sizes are Agency non-presence 48, 
 
 ## Supabase setup
 
-1. Create a Supabase project and run [`schema.sql`](./schema.sql) in its SQL Editor. This creates tables, row access policies, project join-code and creation functions, sampling functions, and Realtime publication entries. If the database was set up with an earlier version, rerun the updated `schema.sql`; it uses `create or replace` for the project creation function and keeps existing project data.
+1. Create a Supabase project and run [`schema.sql`](./schema.sql) in its SQL Editor. This creates tables, row access policies, project join-code and creation functions, sampling functions, and Realtime publication entries. If the database was set up with an earlier version, rerun the updated `schema.sql`; it keeps existing labels and data. For a latest run that already has labels, the script creates a fresh run on the same sentences so coders can follow the two-round order. Other existing latest runs get the missing counterpart assignments in place.
 2. Generate a private SQL seed from the workbook:
 
    ```bash
@@ -72,7 +72,7 @@ In the current workbook the six eligible pool sizes are Agency non-presence 48, 
    This creates `seed_source_dataset.sql` locally. Open it, paste it into Supabase SQL Editor, and run it once to preload the source dataset. `.gitignore` excludes the generated SQL and workbook files; do not commit either.
 3. In Supabase Dashboard, open **Authentication → Sign In / Providers → Anonymous Sign-Ins** and enable anonymous sign-ins. No email registration, password, or email redirect URL is needed. Anonymous users are saved in their current browser; use a different browser or browser profile for each coder. Clearing browser data or switching devices creates a new identity, so the old coder's projects and labels will not follow automatically.
 4. Open the app and enter the Supabase Project URL and anon/publishable key. These are stored in the local browser. Never use a service-role key in the browser.
-5. Create a project and share its invite code with the second coder. Choose a seed and count `a`; the database creates six sample strata and keeps each run separate. After both coders submit all assignments, reliability and discussion open automatically.
+5. Create a project and share its invite code with the second coder. Choose a seed and count `a`; the database samples all six strata and assigns both constructs to every sampled sentence. Code the full Inevitability set first, then the full Agency set. Each run remains separate. After both coders submit all assignments, reliability and discussion open automatically.
 
 The browser cannot read the global source dataset. Project gold labels are readable only by the owner after the project enters discussion. Blind independent annotations are immutable and separate from consensus labels.
 
