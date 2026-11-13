@@ -8,6 +8,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 - The golden-label workbook is seeded into the database once. Coders never upload the workbook in the app or browse its labels.
 - Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Every sampled sentence receives both an Inevitability and an Agency assignment. Code all sampled sentences for Inevitability first, then all of those same sentences for Agency. A run contains up to `12 × a` assignments; duplicate sentences selected across dimensions are assigned once per construct.
 - Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (2, 1, or 0) and optional reasoning.
+- Sentences are displayed in a seed-based randomized order shared by both coders; both rounds use the same sentence order, with all Inevitability items before Agency.
 - Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
 - Excel export with source fields, independent labels, and consensus status.
 
@@ -94,6 +95,6 @@ No workbook, generated SQL seed, Supabase URL, or key is stored in this reposito
 
 ## Method notes
 
-- Sampling is deterministic for a given workbook row order, seed, and `a`; it is without replacement within each stratum. A sentence can appear under both constructs because Agency and Inevitability are distinct assignments.
+- Sampling and display order are deterministic for a given workbook row order, seed, and `a`; samples are without replacement within each stratum, and the seed-based presentation order is shared by both coders. Each sentence can appear under both constructs, with the same sentence order in each round.
 - Reliability is computed per selected sample run from assignments both coders completed. The app stores code 0 as absence, code 1 as present/low, and code 2 as present/high. Presence agreement compares 0 vs. 1/2; High/Low agreement compares 1 vs. 2 only when both coders marked the construct present.
 - Discussion notes and confirmed consensus do not modify original labels or reliability statistics.
