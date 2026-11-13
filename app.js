@@ -168,6 +168,7 @@ async function renderData(){
   root.innerHTML=pageHead('PROJECT SETUP','Sample, invite, and export','The golden-label workbook is preloaded in the shared database. Choose a seed and count to draw a reproducible sample.')+
     `<div class="grid"><section class="panel"><h2>1 · Dataset strata</h2><p class="sub">Eligible rows available in the preloaded golden-label database.</p><div id="poolCounts" class="sub">Loading stratum counts…</div></section><section class="panel"><h2>2 · Draw a balanced sample</h2><p class="sub">Each of the six strata gets exactly a sampled sentences. Every sampled sentence receives both labels: complete Inevitability for the full set first, then Agency for that same set.</p><div class="grid"><div class="field"><label>Seed number</label><input id="sampleSeed" type="number" value="2026"></div><div class="field"><label>Count per category (a)</label><input id="sampleCount" type="number" min="1" value="10"></div></div><button class="button" id="drawSample">Draw & assign six strata</button></section></div>
     <section class="panel"><div class="row" style="justify-content:space-between"><div><h2>3 · Invite your coding partner</h2><p class="sub">Share this code with the other coder. Both use separate accounts.</p></div><span class="pill violet">${esc(state.project.join_code)}</span></div><button class="button subtle" id="copyCode">Copy invite code</button></section>
+    <section class="panel"><h2>4 · Manage project members</h2><p class="sub">Reliability uses exactly two remaining project members. Remove a non-owner coder who will not participate; their saved labels are kept.</p><div id="memberList" class="sub">Loading members…</div></section>
     <section class="panel"><div class="row" style="justify-content:space-between"><div><h2>Export results</h2><p class="sub">After blind coding is complete, download source labels, independent annotations, and consensus labels.</p></div><button id="exportWorkbook" class="button secondary" ${state.project.phase==='blind'?'disabled':''}>Export Excel</button></div></section>`;
   $('#copyCode').onclick=async()=>{await navigator.clipboard.writeText(state.project.join_code);toast('Invite code copied')};
   $('#drawSample').onclick=drawSample;
@@ -175,6 +176,16 @@ async function renderData(){
   const {data,error}=await state.supabase.rpc('source_stratum_counts',{p_project_id:state.project.id});
   if(error){$('#poolCounts').textContent=error.message;return;}
   renderPoolCounts(data||[]);
+  const {data:members,error:memberError}=await state.supabase.from('project_members').select('user_id,role,display_name,joined_at').eq('project_id',state.project.id).order('joined_at');
+  if(memberError){$('#memberList').textContent=memberError.message;return;}
+  $('#memberList').innerHTML=`<div class="table-wrap"><table><thead><tr><th>Member</th><th>Role</th><th>Action</th></tr></thead><tbody>${(members||[]).map(m=>`<tr><td>${esc(m.display_name||`Coder ${m.user_id.slice(0,8)}`)}</td><td>${m.role==='owner'?'Project owner':'Coder'}</td><td>${m.role==='coder'?`<button class="button subtle" data-remove-member="${m.user_id}" data-member-name="${esc(m.display_name||'this coder')}">Remove from project</button>`:'Owner cannot be removed'}</td></tr>`).join('')}</tbody></table></div>`;
+  $$('[data-remove-member]').forEach(btn=>btn.onclick=()=>removeProjectMember(btn.dataset.removeMember,btn.dataset.memberName));
+}
+async function removeProjectMember(userId,name){
+  if(!confirm(`Remove ${name} from this project? Their submitted labels will be preserved.`))return;
+  const {data,error}=await state.supabase.from('project_members').delete().eq('project_id',state.project.id).eq('user_id',userId).eq('role','coder').select('user_id').maybeSingle();
+  if(error)return toast(error.message);if(!data)return toast('Member was not removed');
+  toast(`${name} removed; submitted labels were kept`);await loadProjects();
 }
 async function leaveProject(){
   if(!confirm('Leave this project? Your submitted labels will be preserved, but you will lose access to this project.'))return;

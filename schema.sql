@@ -26,8 +26,13 @@ create table if not exists public.project_members (
   project_id uuid not null references public.projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null default 'coder' check (role in ('owner','coder')),
+  display_name text,
   joined_at timestamptz not null default now(), primary key (project_id,user_id)
 );
+alter table public.project_members add column if not exists display_name text;
+update public.project_members m
+set display_name=coalesce(nullif(u.raw_user_meta_data->>'display_name',''),nullif(u.email,''),initcap(m.role)||' '||left(m.user_id::text,8))
+from auth.users u where u.id=m.user_id and m.display_name is null;
 create table if not exists public.sentences (
   id uuid primary key default gen_random_uuid(), project_id uuid not null references public.projects(id) on delete cascade,
   external_id text not null, sentence text not null, created_at timestamptz not null default now(), unique(project_id,external_id)
@@ -227,7 +232,10 @@ grant execute on function public.draw_balanced_sample(uuid,bigint,integer) to au
 create or replace function public.add_project_owner()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  insert into public.project_members(project_id,user_id,role) values(new.id,new.owner_id,'owner') on conflict do nothing;
+  insert into public.project_members(project_id,user_id,role,display_name)
+  select new.id,u.id,'owner',coalesce(nullif(u.raw_user_meta_data->>'display_name',''),nullif(u.email,''),'Owner')
+  from auth.users u where u.id=new.owner_id
+  on conflict(project_id,user_id) do update set display_name=excluded.display_name;
   return new;
 end;
 $$;
@@ -258,7 +266,10 @@ begin
   if (select auth.uid()) is null then raise exception 'Sign in first'; end if;
   select p.id into found_project from public.projects p where upper(p.join_code)=upper(trim(p_code));
   if found_project is null then raise exception 'Invite code not found'; end if;
-  insert into public.project_members(project_id,user_id,role) values(found_project,(select auth.uid()),'coder') on conflict do nothing;
+  insert into public.project_members(project_id,user_id,role,display_name)
+  select found_project,u.id,'coder',coalesce(nullif(u.raw_user_meta_data->>'display_name',''),nullif(u.email,''),'Coder '||left(u.id::text,8))
+  from auth.users u where u.id=(select auth.uid())
+  on conflict(project_id,user_id) do update set display_name=excluded.display_name;
   return found_project;
 end;
 $$;
@@ -334,6 +345,9 @@ create policy members_select_member on public.project_members for select to auth
 drop policy if exists members_leave_own_coder on public.project_members;
 create policy members_leave_own_coder on public.project_members for delete to authenticated using (
   user_id=(select auth.uid()) and role='coder');
+drop policy if exists members_remove_coder_owner on public.project_members;
+create policy members_remove_coder_owner on public.project_members for delete to authenticated using (
+  public.is_project_owner(project_id) and role='coder');
 drop policy if exists sentences_select_member on public.sentences;
 create policy sentences_select_member on public.sentences for select to authenticated using (public.is_project_member(project_id));
 drop policy if exists sentences_insert_owner on public.sentences;
