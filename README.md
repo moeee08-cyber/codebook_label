@@ -10,6 +10,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 - Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (2, 1, or 0) and optional reasoning.
 - Sentences are displayed in a seed-based randomized order shared by both coders; both rounds use the same sentence order, with all Inevitability items before Agency.
 - Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
+- Reliability opens when exactly two project members remain and both complete the latest sample run. A non-owner coder can leave from Data & sampling; their saved labels remain stored, and completion is rechecked after they leave.
 - Excel export with source fields, independent labels, and consensus status.
 
 ## Dataset columns

@@ -265,35 +265,52 @@ $$;
 grant execute on function public.join_project_with_code(text) to authenticated;
 drop function if exists public.open_project_review(uuid);
 
--- Opening review is automatic after both project members submit every assignment
--- in the latest sample run.
--- Lock the project row so simultaneous final submissions cannot miss each other.
+-- Open review when exactly two project members remain and both completed the
+-- latest run. Recheck after annotations and after a coder leaves the project.
 drop trigger if exists annotations_auto_open_review on public.annotations;
 drop function if exists public.auto_open_review_after_annotation();
-create function public.auto_open_review_after_annotation()
-returns trigger language plpgsql security definer set search_path = '' as $$
-declare assignment_total integer; member_total integer; complete_coders integer; locked_project uuid; active_run uuid;
+drop trigger if exists project_member_leave_auto_open_review on public.project_members;
+drop function if exists public.auto_open_review_after_member_leave();
+create or replace function public.try_open_project_review(p_project_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare assignment_total integer; member_total integer; complete_coders integer; active_run uuid;
 begin
-  select p.id into locked_project from public.projects p where p.id=new.project_id for update;
-  if public.project_phase(new.project_id)<>'blind' then return new; end if;
-  select r.id into active_run from public.sample_runs r where r.project_id=new.project_id order by r.created_at desc limit 1;
-  if active_run is null then return new; end if;
-  select count(*) into assignment_total from public.assignments a where a.project_id=new.project_id and a.sample_run_id=active_run;
-  select count(*) into member_total from public.project_members m where m.project_id=new.project_id;
-  if assignment_total=0 or member_total<>2 then return new; end if;
+  perform 1 from public.projects p where p.id=p_project_id for update;
+  if not found or public.project_phase(p_project_id)<>'blind' then return; end if;
+  select r.id into active_run from public.sample_runs r where r.project_id=p_project_id order by r.created_at desc limit 1;
+  if active_run is null then return; end if;
+  select count(*) into assignment_total from public.assignments a where a.project_id=p_project_id and a.sample_run_id=active_run;
+  select count(*) into member_total from public.project_members m where m.project_id=p_project_id;
+  if assignment_total=0 or member_total<>2 then return; end if;
   select count(*) into complete_coders
   from public.project_members m
-  where m.project_id=new.project_id
+  where m.project_id=p_project_id
     and (select count(*) from public.annotations n join public.assignments a on a.id=n.assignment_id
-         where n.project_id=new.project_id and n.user_id=m.user_id and a.sample_run_id=active_run)=assignment_total;
-  if complete_coders=2 then
-    update public.projects set phase='discussion' where id=new.project_id;
-  end if;
+         where n.project_id=p_project_id and n.user_id=m.user_id and a.sample_run_id=active_run)=assignment_total;
+  if complete_coders=2 then update public.projects set phase='discussion' where id=p_project_id; end if;
+end;
+$$;
+revoke all on function public.try_open_project_review(uuid) from public,anon,authenticated;
+create function public.auto_open_review_after_annotation()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  perform public.try_open_project_review(new.project_id);
   return new;
 end;
 $$;
+revoke all on function public.auto_open_review_after_annotation() from public,anon,authenticated;
 create trigger annotations_auto_open_review after insert on public.annotations
 for each row execute function public.auto_open_review_after_annotation();
+create function public.auto_open_review_after_member_leave()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if old.role='coder' then perform public.try_open_project_review(old.project_id); end if;
+  return old;
+end;
+$$;
+revoke all on function public.auto_open_review_after_member_leave() from public,anon,authenticated;
+create trigger project_member_leave_auto_open_review after delete on public.project_members
+for each row execute function public.auto_open_review_after_member_leave();
 
 alter table public.projects enable row level security;
 alter table public.source_dataset enable row level security;
@@ -314,6 +331,9 @@ drop policy if exists projects_update_owner on public.projects;
 create policy projects_update_owner on public.projects for update to authenticated using (owner_id=(select auth.uid())) with check (owner_id=(select auth.uid()));
 drop policy if exists members_select_member on public.project_members;
 create policy members_select_member on public.project_members for select to authenticated using (public.is_project_member(project_id));
+drop policy if exists members_leave_own_coder on public.project_members;
+create policy members_leave_own_coder on public.project_members for delete to authenticated using (
+  user_id=(select auth.uid()) and role='coder');
 drop policy if exists sentences_select_member on public.sentences;
 create policy sentences_select_member on public.sentences for select to authenticated using (public.is_project_member(project_id));
 drop policy if exists sentences_insert_owner on public.sentences;
@@ -355,7 +375,7 @@ create policy consensus_update_review on public.consensus for update to authenti
   public.is_project_member(project_id) and public.project_phase(project_id)='discussion');
 
 grant select,insert,update on public.projects to authenticated;
-grant select on public.project_members to authenticated;
+grant select,delete on public.project_members to authenticated;
 grant select,insert,update on public.sentences to authenticated;
 grant select on public.gold_labels to authenticated;
 grant select,insert on public.sample_runs to authenticated;
@@ -369,7 +389,7 @@ grant select,insert,update on public.consensus to authenticated;
 do $$
 declare tbl text;
 begin
-  foreach tbl in array array['projects','sample_runs','annotations','discussion_notes','consensus'] loop
+  foreach tbl in array array['projects','project_members','sample_runs','annotations','discussion_notes','consensus'] loop
     if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename=tbl) then
       execute format('alter publication supabase_realtime add table public.%I',tbl);
     end if;
