@@ -7,7 +7,7 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 - Passwordless anonymous coder identities with display names and shared project invite codes.
 - The golden-label workbook is seeded into the database once. Coders never upload the workbook in the app or browse its labels.
 - Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Every sampled sentence receives both an Inevitability and an Agency assignment. Code all sampled sentences for Inevitability first, then all of those same sentences for Agency. A run contains up to `12 × a` assignments; duplicate sentences selected across dimensions are assigned once per construct.
-- Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (2, 1, or 0) and optional reasoning.
+- Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (0, 1, or 2), an optional Unsure flag for unresolved 1-vs-2 cases, and optional reasoning.
 - Sentences are displayed in a seed-based randomized order shared by both coders; both rounds use the same sentence order, with all Inevitability items before Agency.
 - Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
 - Reliability opens when exactly two project members remain and both complete the latest sample run. A non-owner coder can leave from Data & sampling; their saved labels remain stored, and completion is rechecked after they leave.
@@ -30,36 +30,42 @@ The existing workbook at `/Users/wumengmeng/Desktop/AI_label_second_round_golden
 
 ## Human coding codebook
 
-Code each assignment in this order: **Inevitability (I)** first, then **Agency (A)**. For each construct, choose exactly one code in the order **2, 1, 0**.
+Code each assignment in this order: **Inevitability (I)** first, then **Agency (A)**. For each construct, choose one substantive label in the order **0, 1, 2**. Optionally mark **U – Unsure** only alongside code 1 or 2 when the construct is present but the high/low distinction remains genuinely unresolved. The coder must still choose 1 or 2 based on their best judgment.
 
 ### Inevitability (I)
 
-**2– High inevitability.** The sentence discusses AI’s trajectory and portrays it as unavoidable or as occurring regardless of meaningful human choice. This includes portraying it as:
+**0 – Not present.** An explicit reference to the future (such as future tense, modal verbs, or trend expressions) is required for a 1 or 2, excluding expressions explicitly accompanied by present-time references (e.g., “should adopt AI right now”). If the sentence does not discuss AI’s development, adoption, diffusion, or consequences as a trajectory—that is, how AI's past or present state relates to its future state—label it 0. Sentences that only describe the current state or past development are coded 0.
 
-- unstoppable
-- the next stage of progress
-- something humans, organizations, or society must adopt or adapt to
-- a development where nonparticipation means being left behind
+**1 – Low inevitability.** The sentence discusses AI’s trajectory and portrays it as contingent on human decisions, institutions, regulation, investment, or collective choices. AI may or may not develop or diffuse in a particular way, and alternative trajectories are possible.
 
-**1– Low inevitability.** The sentence discusses AI’s trajectory and portrays it as contingent on human decisions, institutions, regulation, investment, or collective choices. AI may or may not develop or diffuse in a particular way, and alternative trajectories are possible.
+**2 – High inevitability.** The sentence discusses AI’s trajectory and portrays it as unavoidable or as occurring regardless of meaningful human choice. This includes portraying it as unstoppable, the next stage of progress, something humans, organizations, or society must adopt or adapt to, or a development where nonparticipation means being left behind.
 
-**0 – Not present.** An explicit reference to the future (such as future tense, modal verbs) is required for a 1 or 2. If the sentence does not discuss AI’s development, adoption, diffusion, or consequences as a trajectory, meaning how AI was or is now compared to a point in the future. Sentences that only describe the current state or past development are coded 0.
+**U – Unsure (optional).** Use only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
 
 ### Agency (A)
 
-Actor scope: Only public or **public-serving actors count (e.g., employees, people in general, government organizations). Private-serving actors (e.g., managers, individual companies) do not count.**
-
-**2 – High agency.** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
-
-**1 – Low agency.** Code 2 if either of these applies:
-
-- The sentence portrays public or public-serving actors as mainly reacting or adapting to forces already set in motion, with little meaningful capacity to shape whether or how AI develops or affects society.
-- The sentence describes AI impacting actors without indicating that those actors can shape that impact. These sentences count as agency-present because they have implications for how humans can act on AI, and they are coded low because the humans are only being affected.
+Actor scope: Only public or **public-serving actors count (e.g., employees, people in general, government organizations)**. **Private-serving actors (e.g., managers, individual companies) do not count.**
 
 **0 – Not present.** Code 0 if either of these applies:
 
 - The sentence does not describe how human or institutional actors can act in relation to AI’s development, adoption, diffusion, or consequences, and does not describe AI impacting humans.
 - The only actors in the sentence are private-serving.
+
+**1 – Low agency.** Code 1 if either of these applies:
+
+- The sentence portrays public or public-serving actors as mainly reacting or adapting to forces already set in motion, with little meaningful capacity to shape whether or how AI develops or affects society.
+- The sentence describes AI impacting actors without indicating that those actors can shape that impact. These sentences count as agency-present because they have implications for how humans can act on AI, and they are coded low because the humans are only being affected.
+
+**2 – High agency.** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
+
+**U – Unsure (optional).** Use only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
+
+### More Notes on the General Principles
+
+1. Prioritize the overall argument over isolated phrases. When a sentence contains competing perspectives, assign labels based on its main argument rather than isolated statements.
+   - “ai has been a battle ground for a number of unions while they renegotiate their terms atm *because* companies are so willing to replace them with ai.” Golden label for agency: **High**. The main emphasis is on unions actively negotiating and resisting company decisions, demonstrating human agency over AI adoption.
+   - “AI costs little, works around the clock, does not form unions, and does not resign. In a capitalist system, many companies dream of such employees. AI will not replace people—but managers will replace people with AI.” Golden label for inevitability: **High**. The main argument presents replacement by managers as an expected consequence of AI adoption.
+2. Open-ended questions can indicate high agency and low inevitability when they imply that AI’s future remains subject to human decisions. “who's gonna be in control of ai in the future?” Golden labels: Agency **2 (High)**; Inevitability **1 (Low)**, because it implies human control remains possible and AI’s future is not predetermined.
 
 In the current workbook the six eligible pool sizes are Agency non-presence 48, low 29, high 43; Inevitability non-presence 43, low 35, high 39. Therefore the largest equal count for all six strata is `a = 29`.
 
@@ -98,5 +104,5 @@ No workbook, generated SQL seed, Supabase URL, or key is stored in this reposito
 ## Method notes
 
 - Sampling and display order are deterministic for a given workbook row order, seed, and `a`; samples are without replacement within each stratum, and the seed-based presentation order is shared by both coders. Each sentence can appear under both constructs, with the same sentence order in each round.
-- Reliability is computed per selected sample run from assignments both coders completed. The app stores code 0 as absence, code 1 as present/low, and code 2 as present/high. Presence agreement compares 0 vs. 1/2; High/Low agreement compares 1 vs. 2 only when both coders marked the construct present.
+- Reliability is computed per selected sample run from assignments both coders completed. The app stores code 0 as absence, code 1 as present/low, and code 2 as present/high. It reports both the original approach using all paired labels and an Unsure-excluded approach that omits a paired assignment from both measures if either coder marked Unsure. Presence agreement compares 0 vs. 1/2; High/Low agreement compares 1 vs. 2 only when both coders marked the construct present.
 - Discussion notes and confirmed consensus do not modify original labels or reliability statistics.

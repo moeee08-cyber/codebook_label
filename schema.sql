@@ -100,8 +100,18 @@ create table if not exists public.annotations (
   id uuid primary key default gen_random_uuid(), project_id uuid not null references public.projects(id) on delete cascade,
   assignment_id uuid not null references public.assignments(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade, presence boolean not null, high_low boolean,
+  unsure boolean not null default false,
   reasoning text, submitted_at timestamptz not null default now(), unique(assignment_id,user_id)
 );
+alter table public.annotations add column if not exists unsure boolean not null default false;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conrelid='public.annotations'::regclass and conname='annotations_unsure_requires_high_low') then
+    alter table public.annotations add constraint annotations_unsure_requires_high_low
+      check (not unsure or (presence and high_low is not null));
+  end if;
+end;
+$$;
 create table if not exists public.discussion_notes (
   id uuid primary key default gen_random_uuid(), project_id uuid not null references public.projects(id) on delete cascade,
   assignment_id uuid not null references public.assignments(id) on delete cascade,
