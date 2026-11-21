@@ -40,7 +40,7 @@ Code each assignment in this order: **Inevitability (I)** first, then **Agency (
 
 **2 – High inevitability.** The sentence discusses AI’s trajectory and portrays it as unavoidable or as occurring regardless of meaningful human choice. This includes portraying it as unstoppable, the next stage of progress, something humans, organizations, or society must adopt or adapt to, or a development where nonparticipation means being left behind.
 
-**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
+**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
 
 ### Agency (A)
 
@@ -58,7 +58,7 @@ Actor scope: Only public or **public-serving actors count (e.g., employees, peop
 
 **2 – High agency.** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
 
-**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
+**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
 
 ### More Notes on the General Principles
 
