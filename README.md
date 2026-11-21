@@ -40,7 +40,7 @@ Code each assignment in this order: **Inevitability (I)** first, then **Agency (
 
 **2 – High inevitability.** The sentence discusses AI’s trajectory and portrays it as unavoidable or as occurring regardless of meaningful human choice. This includes portraying it as unstoppable, the next stage of progress, something humans, organizations, or society must adopt or adapt to, or a development where nonparticipation means being left behind.
 
-**U – Unsure (optional).** Use only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
+**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
 
 ### Agency (A)
 
@@ -58,14 +58,39 @@ Actor scope: Only public or **public-serving actors count (e.g., employees, peop
 
 **2 – High agency.** The sentence portrays public or public-serving actors as having meaningful capacity to shape whether or how AI develops, is deployed, or affects society. Examples are regulation, organizational adoption decisions, public influence, or individual choices. This includes sentences where AI is impacting actors and those actors are also shown shaping or directing that impact.
 
-**U – Unsure (optional).** Use only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding. Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
+**U – Unsure (optional):** Use this label only when the construct is present (i.e., you have ruled out 0), but the distinction between 1 and 2 remains genuinely unresolved after applying their coding Even if you select Unsure, you must still choose between 1 and 2 based on your best judgment. Use Unsure only when necessary.
 
 ### More Notes on the General Principles
 
 1. Prioritize the overall argument over isolated phrases. When a sentence contains competing perspectives, assign labels based on its main argument rather than isolated statements.
-   - “ai has been a battle ground for a number of unions while they renegotiate their terms atm *because* companies are so willing to replace them with ai.” Golden label for agency: **High**. The main emphasis is on unions actively negotiating and resisting company decisions, demonstrating human agency over AI adoption.
-   - “AI costs little, works around the clock, does not form unions, and does not resign. In a capitalist system, many companies dream of such employees. AI will not replace people—but managers will replace people with AI.” Golden label for inevitability: **High**. The main argument presents replacement by managers as an expected consequence of AI adoption.
-2. Open-ended questions can indicate high agency and low inevitability when they imply that AI’s future remains subject to human decisions. “who's gonna be in control of ai in the future?” Golden labels: Agency **2 (High)**; Inevitability **1 (Low)**, because it implies human control remains possible and AI’s future is not predetermined.
+
+   Example 1:
+
+   > "ai has been a battle ground for a number of unions while they renegotiate their terms atm *because* companies are so willing to replace them with ai."
+
+   Golden label for agency: High
+
+   Reason: Although companies are willing to replace workers with AI, the main emphasis is on unions actively negotiating and resisting these decisions, demonstrating human agency over AI adoption.
+
+   Example 2:
+
+   > "AI costs little, works around the clock, does not form unions, and does not resign. In a capitalist system, many companies dream of such employees. AI will not replace people—but managers will replace people with AI."
+
+   Golden label for inevitability: High
+
+   Reason: Although AI itself is said not to replace people, the main argument presents replacement by managers as an expected consequence of AI adoption.
+
+2. Open-ended questions can indicate high agency and low inevitability when they imply that AI's future remains subject to human decisions.
+
+   Example:
+
+   > "who's gonna be in control of ai in the future?"
+
+   Golden label for agency: High
+
+   Golden label for inevitability: Low
+
+   Reason: The question implies that human control remains possible and AI's future is not predetermined.
 
 In the current workbook the six eligible pool sizes are Agency non-presence 48, low 29, high 43; Inevitability non-presence 43, low 35, high 39. Therefore the largest equal count for all six strata is `a = 29`.
 
