@@ -9,8 +9,8 @@ A static, GitHub Pages-friendly workflow for independent Agency and Inevitabilit
 - Seeded, without-replacement sampling of `a` items in each stratum: Agency non-presence / low / high and Inevitability non-presence / low / high. Every sampled sentence receives both an Inevitability and an Agency assignment. Code all sampled sentences for Inevitability first, then all of those same sentences for Agency. A run contains up to `12 × a` assignments; duplicate sentences selected across dimensions are assigned once per construct.
 - Independent labeling in the order Inevitability (I), then Agency (A), with one direct code choice (0, 1, or 2), an optional Unsure flag for unresolved 1-vs-2 cases, and optional reasoning.
 - Sentences are displayed in a seed-based randomized order shared by both coders; both rounds use the same sentence order, with all Inevitability items before Agency.
-- Blind phase hides the other coder's submissions. After both coders finish all assignments, the database automatically opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
-- Reliability opens when exactly two project members remain and both complete the latest sample run. A non-owner coder can leave from Data & sampling; their saved labels remain stored, and completion is rechecked after they leave.
+- Blind phase hides the other coder's submissions. Each coder can review and edit all of their own saved labels, then explicitly submit them for evaluation. After both coders submit, the database opens discussion and unlocks original labels, Cohen's κ, percent agreement, confusion matrices, comments, and consensus proposals.
+- Reliability opens when exactly two project members remain and both complete and finalize the latest sample run. A non-owner coder can leave from Data & sampling; their saved labels remain stored, and completion is rechecked after they leave.
 - Project owners can view member names and remove non-owner coders from Data & sampling. Removing a coder preserves their saved labels and rechecks whether the remaining two members have completed the active run.
 - Excel export with source fields, independent labels, and consensus status.
 
@@ -106,9 +106,9 @@ In the current workbook the six eligible pool sizes are Agency non-presence 48, 
    This creates `seed_source_dataset.sql` locally. Open it, paste it into Supabase SQL Editor, and run it once to preload the source dataset. `.gitignore` excludes the generated SQL and workbook files; do not commit either.
 3. In Supabase Dashboard, open **Authentication → Sign In / Providers → Anonymous Sign-Ins** and enable anonymous sign-ins. No email registration, password, or email redirect URL is needed. Anonymous users are saved in their current browser; use a different browser or browser profile for each coder. Clearing browser data or switching devices creates a new identity, so the old coder's projects and labels will not follow automatically.
 4. Open the app and enter the Supabase Project URL and anon/publishable key. These are stored in the local browser. Never use a service-role key in the browser.
-5. Create a project and share its invite code with the second coder. Choose a seed and count `a`; the database samples all six strata and assigns both constructs to every sampled sentence. Code the full Inevitability set first, then the full Agency set. Each run remains separate. After both coders submit all assignments, reliability and discussion open automatically.
+5. Create a project and share its invite code with the second coder. Choose a seed and count `a`; the database samples all six strata and assigns both constructs to every sampled sentence. Code the full Inevitability set first, then the full Agency set. In Independent coding, review the saved labels and edit any answer before submitting them for evaluation. Reliability and discussion open after both coders submit.
 
-The browser cannot read the global source dataset. Project gold labels are readable only by the owner after the project enters discussion. Blind independent annotations are immutable and separate from consensus labels.
+The browser cannot read the global source dataset. Project gold labels are readable only by the owner after the project enters discussion. During blind coding, each coder can read and edit only their own independent annotations; after evaluation opens, original annotations are locked and remain separate from consensus labels.
 
 ## Local preview
 

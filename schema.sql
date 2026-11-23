@@ -112,6 +112,15 @@ begin
   end if;
 end;
 $$;
+-- Coders can inspect their own saved annotations before evaluation. Each coder
+-- explicitly finalizes after review; evaluation opens only when both do so.
+create table if not exists public.coding_completions (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  sample_run_id uuid not null references public.sample_runs(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  completed_at timestamptz not null default now(),
+  primary key(sample_run_id,user_id)
+);
 create table if not exists public.discussion_notes (
   id uuid primary key default gen_random_uuid(), project_id uuid not null references public.projects(id) on delete cascade,
   assignment_id uuid not null references public.assignments(id) on delete cascade,
@@ -286,8 +295,7 @@ $$;
 grant execute on function public.join_project_with_code(text) to authenticated;
 drop function if exists public.open_project_review(uuid);
 
--- Open review when exactly two project members remain and both completed the
--- latest run. Recheck after annotations and after a coder leaves the project.
+-- Open review only after exactly two project members finalize the latest run.
 drop trigger if exists annotations_auto_open_review on public.annotations;
 drop function if exists public.auto_open_review_after_annotation();
 drop trigger if exists project_member_leave_auto_open_review on public.project_members;
@@ -305,6 +313,7 @@ begin
   if assignment_total=0 or member_total<>2 then return; end if;
   select count(*) into complete_coders
   from public.project_members m
+  join public.coding_completions c on c.project_id=m.project_id and c.user_id=m.user_id and c.sample_run_id=active_run
   where m.project_id=p_project_id
     and (select count(*) from public.annotations n join public.assignments a on a.id=n.assignment_id
          where n.project_id=p_project_id and n.user_id=m.user_id and a.sample_run_id=active_run)=assignment_total;
@@ -312,6 +321,53 @@ begin
 end;
 $$;
 revoke all on function public.try_open_project_review(uuid) from public,anon,authenticated;
+create or replace function public.finalize_coding(p_project_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare active_run uuid; assignment_total integer; own_total integer;
+begin
+  if not public.is_project_member(p_project_id) then raise exception 'Join this project before finalizing labels'; end if;
+  if public.project_phase(p_project_id)<>'blind' then raise exception 'Coding is already closed'; end if;
+  select r.id into active_run from public.sample_runs r where r.project_id=p_project_id order by r.created_at desc limit 1;
+  if active_run is null then raise exception 'No sample run is available'; end if;
+  select count(*) into assignment_total from public.assignments a where a.project_id=p_project_id and a.sample_run_id=active_run;
+  select count(*) into own_total from public.annotations n join public.assignments a on a.id=n.assignment_id
+    where n.project_id=p_project_id and n.user_id=(select auth.uid()) and a.sample_run_id=active_run;
+  if assignment_total=0 or own_total<>assignment_total then raise exception 'Complete every assigned label before submitting for evaluation'; end if;
+  insert into public.coding_completions(project_id,sample_run_id,user_id)
+    values(p_project_id,active_run,(select auth.uid()))
+    on conflict(sample_run_id,user_id) do update set completed_at=now();
+  perform public.try_open_project_review(p_project_id);
+end;
+$$;
+revoke all on function public.finalize_coding(uuid) from public,anon;
+grant execute on function public.finalize_coding(uuid) to authenticated;
+create or replace function public.reopen_coding(p_project_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare active_run uuid;
+begin
+  if not public.is_project_member(p_project_id) then raise exception 'Join this project before editing labels'; end if;
+  if public.project_phase(p_project_id)<>'blind' then raise exception 'Evaluation has opened; labels can no longer be edited'; end if;
+  select r.id into active_run from public.sample_runs r where r.project_id=p_project_id order by r.created_at desc limit 1;
+  delete from public.coding_completions where project_id=p_project_id and sample_run_id=active_run and user_id=(select auth.uid());
+end;
+$$;
+revoke all on function public.reopen_coding(uuid) from public,anon;
+grant execute on function public.reopen_coding(uuid) to authenticated;
+create or replace function public.invalidate_coding_completion_after_annotation_update()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare run_id uuid;
+begin
+  perform 1 from public.projects p where p.id=new.project_id and p.phase='blind' for update;
+  if not found then raise exception 'Coding is already closed'; end if;
+  select a.sample_run_id into run_id from public.assignments a where a.id=new.assignment_id;
+  delete from public.coding_completions where project_id=new.project_id and sample_run_id=run_id and user_id=new.user_id;
+  return new;
+end;
+$$;
+revoke all on function public.invalidate_coding_completion_after_annotation_update() from public,anon,authenticated;
+drop trigger if exists annotations_invalidate_coding_completion on public.annotations;
+create trigger annotations_invalidate_coding_completion after update on public.annotations
+for each row execute function public.invalidate_coding_completion_after_annotation_update();
 create function public.auto_open_review_after_annotation()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
@@ -341,6 +397,7 @@ alter table public.gold_labels enable row level security;
 alter table public.sample_runs enable row level security;
 alter table public.assignments enable row level security;
 alter table public.annotations enable row level security;
+alter table public.coding_completions enable row level security;
 alter table public.discussion_notes enable row level security;
 alter table public.consensus enable row level security;
 
@@ -381,6 +438,13 @@ create policy annotations_select_blind_or_review on public.annotations for selec
 drop policy if exists annotations_insert_own_blind on public.annotations;
 create policy annotations_insert_own_blind on public.annotations for insert to authenticated with check (
   user_id=(select auth.uid()) and public.is_project_member(project_id) and public.project_phase(project_id)='blind');
+drop policy if exists annotations_update_own_blind on public.annotations;
+create policy annotations_update_own_blind on public.annotations for update to authenticated
+using (user_id=(select auth.uid()) and public.is_project_member(project_id) and public.project_phase(project_id)='blind')
+with check (user_id=(select auth.uid()) and public.is_project_member(project_id) and public.project_phase(project_id)='blind');
+drop policy if exists coding_completions_select_own on public.coding_completions;
+create policy coding_completions_select_own on public.coding_completions for select to authenticated
+using (user_id=(select auth.uid()) and public.is_project_member(project_id));
 drop policy if exists notes_select_review on public.discussion_notes;
 create policy notes_select_review on public.discussion_notes for select to authenticated using (
   public.is_project_member(project_id) and public.project_phase(project_id)='discussion');
@@ -405,6 +469,8 @@ grant select on public.gold_labels to authenticated;
 grant select,insert on public.sample_runs to authenticated;
 grant select,insert on public.assignments to authenticated;
 grant select,insert on public.annotations to authenticated;
+grant update (presence,high_low,unsure,reasoning) on public.annotations to authenticated;
+grant select on public.coding_completions to authenticated;
 grant select,insert on public.discussion_notes to authenticated;
 grant select,insert,update on public.consensus to authenticated;
 
